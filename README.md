@@ -1,4 +1,5 @@
 This is my effort of making the Seeed Studio XIAO ESP32S3 work with more stabel WiFi connection and with SD-Card and with local network downloading of photos.
+I have only breafly tested the code so it's on your own risk you run this.
 
 # PrusaConnect ESP32-CAM
 
