@@ -1,3 +1,5 @@
+This is my effort on making the Seeed Studio XIAO ESP32S3 work with more stabel WiFi connection and with SD-Card and with local network downloading of photos.
+
 # PrusaConnect ESP32-CAM
 
 This repository includes source code and firmware releases for the **ESP32-cam** module programmed in the **Arduino IDE**. Currently, several versions of boards built on **ESP32/ESP32S3** processors with a camera chip are supported. You can find a list of supported boards below. Additionally, for each supported board, there is a guide on how to upload the firmware, how to compile code for it, some basic information and a list of known issues for this particular board.
