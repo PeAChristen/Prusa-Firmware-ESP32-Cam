@@ -51,6 +51,11 @@ enum NetworkIpMethod_enum {
 
 class WiFiMngt {
 private:
+
+  volatile bool RetryPending;           ///< flag: reconnect retry requested after failed auth/assoc
+  unsigned long RetryPrevMillis;        ///< time of last retry
+  uint8_t RetryCount;                   ///< number of retries since last successful connection
+
   String WifiSsid;                    ///< WI-FI SSID
   String WifiPassword;                ///< WI-FI password
   bool ServiceMode;                   ///< flag for enable service AP mode after MCU start during STA_AP_MODE_TIMEOUT ms
@@ -89,6 +94,9 @@ private:
 public:
   WiFiMngt(Configuration*, Logs*, Camera*);
   ~WiFiMngt() {};
+
+  void RequestRetry();
+  void ClearRetry();
 
   void LoadCfgFromEeprom();
   void Init();

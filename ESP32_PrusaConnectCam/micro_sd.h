@@ -48,6 +48,8 @@ public:
   MicroSd();
   ~MicroSd(){};
 
+  SemaphoreHandle_t GetMutex() { return sdCardMutex; } ///< Enable Download from sd-card
+
   void InitSdCard();
   void ReinitCard();
   bool OpenFile(File*, String);

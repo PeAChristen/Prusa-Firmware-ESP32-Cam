@@ -72,6 +72,7 @@ void Camera::Init() {
 #endif
 
   InitCameraModule();
+  delay(1000);       
   ApplyCameraCfg();
   GetCameraModel();
 }

@@ -20,6 +20,7 @@ WiFiMngt SystemWifiMngt(&SystemConfig, &SystemLog, &SystemCamera);
    @param Camera* - pointer to Camera class
    @return none
 */  
+
 WiFiMngt::WiFiMngt(Configuration *i_conf, Logs *i_log, Camera *i_cam) {
   config = i_conf;
   log = i_log;
@@ -32,6 +33,11 @@ WiFiMngt::WiFiMngt(Configuration *i_conf, Logs *i_log, Camera *i_cam) {
 
   NtpFirstSync = false;
   StartStaWdg = false;
+
+  RetryPending = false;
+  RetryPrevMillis = 0;
+  RetryCount = 0;
+
 }
 
 /**
@@ -52,6 +58,9 @@ void WiFiMngt::LoadCfgFromEeprom() {
   NetStaticGateway.fromString(config->LoadNetworkGateway());
   NetStaticDns.fromString(config->LoadNetworkDns());
 }
+
+void WiFiMngt::RequestRetry() { RetryPending = true; }
+void WiFiMngt::ClearRetry()   { RetryPending = false; RetryCount = 0; }
 
 /**
    @brief function for init wifi module
@@ -138,6 +147,24 @@ void WiFiMngt::Init() {
    @return none
 */
 void WiFiMngt::WifiManagement() {
+  
+  /* retry connecting to STA after auth/assoc failure (reason 202, 203, 204, 15) */
+  if ((true == RetryPending) && (WL_CONNECTED != WiFi.status())
+      && (true == config->CheckActifeWifiCfgFlag()) && (false == ServiceMode)) {
+    unsigned long now = millis();
+    /* backoff: 3 s, 6 s, 9 s ... max 15 s */
+    unsigned long wait = min((unsigned long)(RetryCount + 1) * 3000UL, 15000UL);
+    if (now - RetryPrevMillis >= wait) {
+      RetryPrevMillis = now;
+      RetryCount++;
+      RetryPending = false;
+      log->AddEvent(LogLevel_Warning, "WiFi retry connect #" + String(RetryCount));
+      WiFi.disconnect(false);
+      delay(200);
+      WiFiStaConnect();
+    }
+  }
+
   /* check disable service AP */
   unsigned long currentMillis = millis();
   if (currentMillis - TaskAp_previousMillis >= STA_AP_MODE_TIMEOUT) {
@@ -947,6 +974,9 @@ void WiFiMngt_WiFiEventGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   if (false == SystemWifiMngt.GetNtpFirstTimeSync()) {
     SystemWifiMngt.SyncNtpTime();
   }
+
+  SystemWifiMngt.ClearRetry();
+
 }
 
 /**
@@ -997,8 +1027,16 @@ void WiFiMngt_WiFiEventLostIP(WiFiEvent_t event, WiFiEventInfo_t info) {
    @note https://github.com/espressif/arduino-esp32/blob/04963009eedfbc1e0ea2e1378ae69e7cebda6fd6/tools/sdk/include/esp32/esp_event_legacy.h
 */
 void WiFiMngt_WiFiEventStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  SystemLog.AddEvent(LogLevel_Warning, String("WiFi disconnected from access point. Reason: ") + String(info.wifi_sta_disconnected.reason));
+  uint8_t reason = info.wifi_sta_disconnected.reason;
+  SystemLog.AddEvent(LogLevel_Warning, String("WiFi disconnected from access point. Reason: ") + String(reason));
   system_led.setTimer(STATUS_LED_ERROR);
+
+  /* 202 AUTH_FAIL, 203 ASSOC_FAIL, 204 HANDSHAKE_TIMEOUT, 15 4WAY_HANDSHAKE_TIMEOUT:
+     Arduino core does not auto-reconnect on these, so request a retry */
+  if ((reason == 202) || (reason == 203) || (reason == 204) || (reason == 15)) {
+    SystemWifiMngt.RequestRetry();
+  }
+
 }
 
 /**

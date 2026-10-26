@@ -91,12 +91,12 @@
 /* ---------- RESET CFG CONFIGURATION  ----------*/
 #define CFG_RESET_PIN               2       ///< GPIO 1 is for reset CFG to default. This is button UP+`
 #define CFG_RESET_LED_PIN           21      ///< GPIO for indication of reset CFG
-#define CFG_RESET_LED_LEVEL_ON      LOW     ///< GPIO pin level for status LED ON
+#define CFG_RESET_LED_LEVEL_ON      HIGH     ///< GPIO pin level for status LED ON  EDITED
 
 /* -------------- STATUS LED CFG ----------------*/
-#define STATUS_LED_ENABLE           true    ///< enable/disable status LED
+#define STATUS_LED_ENABLE           false    ///< enable/disable status LED   EDITED
 #define STATUS_LED_GPIO_NUM         21      ///< GPIO pin for status LED
-#define STATUS_LED_OFF_PIN_LEVEL    LOW    ///< GPIO pin level for status LED ON
+#define STATUS_LED_OFF_PIN_LEVEL    HIGH    ///< GPIO pin level for status LED ON   EDITED
 
 /* -------------- DHT SENSOR CFG ----------------*/
 #define DHT_SENSOR_ENABLE           true   ///< enable/disable DHT sensor

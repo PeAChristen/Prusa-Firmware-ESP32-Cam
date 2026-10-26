@@ -655,6 +655,8 @@ bool MicroSd::WritePicture(String i_PhotoName, uint8_t *i_PhotoData, size_t i_Ph
 #endif
   bool ret_stat = false;
 
+  xSemaphoreTake(sdCardMutex, portMAX_DELAY); ///< Enable photo download
+
   File file = SD_MMC.open(i_PhotoName, FILE_WRITE);
 
   if (file) {
@@ -671,7 +673,9 @@ bool MicroSd::WritePicture(String i_PhotoName, uint8_t *i_PhotoData, size_t i_Ph
   } else {
     Serial.printf("Failed. Could not open file: %s\n", i_PhotoName.c_str());
   }
-  
+
+ xSemaphoreTake(sdCardMutex, portMAX_DELAY);  ///< Enable photo download
+
  return ret_stat;
 }
 

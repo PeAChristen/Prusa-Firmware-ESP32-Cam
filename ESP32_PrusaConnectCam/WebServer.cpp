@@ -71,6 +71,9 @@ void Server_InitWebServer() {
       /* send photo without exif data */
       SystemLog.AddEvent(LogLevel_Verbose, F("Send photo without EXIF data"));
       request->send(200, "image/jpg", SystemCamera.GetPhotoFb()->buf, SystemCamera.GetPhotoFb()->len);
+      //AsyncWebServerResponse *response = request->beginResponse(200, "image/jpg", SystemCamera.GetPhotoFb()->buf, SystemCamera.GetPhotoFb()->len);
+      //request->send(response);
+
     }
 
     SystemCamera.SetPhotoSending(false);
@@ -530,6 +533,76 @@ void Server_InitWebServer_Actions() {
 
     request->send(200, F("text/plain"), "Starting remove files from SD card");
   });
+
+  /* list photo file names, one per line */
+  server.on("/sd_files", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+    if (xSemaphoreTake(SystemLog.GetMutex(), pdMS_TO_TICKS(2000)) != pdTRUE) {
+      request->send(503, "text/plain", "busy");
+      return;
+    }
+    String out;
+    File dir = SD_MMC.open(TIMELAPS_PHOTO_FOLDER);
+    if (dir && dir.isDirectory()) {
+      File f = dir.openNextFile();
+      while (f) {
+        if (!f.isDirectory()) {
+          out += f.name();
+          out += '\n';
+        }
+        f.close();
+        f = dir.openNextFile();
+      }
+      dir.close();
+    }
+    xSemaphoreGive(SystemLog.GetMutex());
+    request->send(200, "text/plain", out);
+  });
+
+  /* download photo: /sd_download?file=photo_xxx.jpg */
+  server.on("/sd_download", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+    if (!request->hasParam("file")) {
+      request->send(400, "text/plain", "missing file");
+      return;
+    }
+    String name = request->getParam("file")->value();
+    if ((name.indexOf('/') >= 0) || (name.indexOf('\\') >= 0) || (name.indexOf("..") >= 0) || !name.endsWith(TIMELAPS_PHOTO_SUFFIX)) {
+      request->send(400, "text/plain", "bad file name");
+      return;
+    }
+    String path = String(TIMELAPS_PHOTO_FOLDER) + "/" + name;
+    if (!SD_MMC.exists(path)) {
+      request->send(404, "text/plain", "not found");
+      return;
+    }
+    request->send(SD_MMC, path, "image/jpeg", true);
+  });
+
+  /* delete photo: DELETE /sd_delete?file=photo_xxx.jpg */
+  server.on("/sd_delete", HTTP_DELETE, [](AsyncWebServerRequest* request) {
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+    if (!request->hasParam("file")) {
+      request->send(400, "text/plain", "missing file");
+      return;
+    }
+    String name = request->getParam("file")->value();
+    if ((name.indexOf('/') >= 0) || (name.indexOf('\\') >= 0) || (name.indexOf("..") >= 0) || !name.endsWith(TIMELAPS_PHOTO_SUFFIX)) {
+      request->send(400, "text/plain", "bad file name");
+      return;
+    }
+    if (xSemaphoreTake(SystemLog.GetMutex(), pdMS_TO_TICKS(2000)) != pdTRUE) {
+      request->send(503, "text/plain", "busy");
+      return;
+    }
+    bool ok = SystemLog.DeleteFile(SD_MMC, String(TIMELAPS_PHOTO_FOLDER) + "/" + name);
+    xSemaphoreGive(SystemLog.GetMutex());
+    request->send(ok ? 200 : 404, "text/plain", ok ? "deleted" : "not found");
+  });
+
 }
 
 /**
